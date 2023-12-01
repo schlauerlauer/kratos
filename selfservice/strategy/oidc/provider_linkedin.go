@@ -24,13 +24,13 @@ import (
 type LinkedInProfile struct {
 	LocalizedLastName  string `json:"family_name"`
 	LocalizedFirstName string `json:"given_name"`
-	ProfilePicture     string `json:"picture,omitempty"`
+	ProfilePicture     string `json:"picture"`
 	EmailAddress       string `json:"email"`
 	EmailVerified      bool   `json:"email_verified"`
 	ID                 string `json:"sub"`
 	Locale             *struct {
 		Lanuguage string `json:"language"`
-	} `json:"locale"`
+	} `json:"locale,omitempty"`
 }
 
 type LinkedInIntrospection struct {
