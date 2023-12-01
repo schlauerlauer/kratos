@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/ory/kratos/x"
 	"github.com/ory/x/otelx"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -21,27 +22,15 @@ import (
 )
 
 type LinkedInProfile struct {
-	LocalizedLastName  string `json:"localizedLastName"`
-	LocalizedFirstName string `json:"localizedFirstName"`
-	ProfilePicture     *struct {
-		DisplayImage struct {
-			Elements []struct {
-				Identifiers []struct {
-					Identifier string `json:"identifier"`
-				} `json:"identifiers"`
-			} `json:"elements"`
-		} `json:"displayImage~"`
-	} `json:"profilePicture,omitempty"`
-	ID string `json:"id"`
-}
-
-type LinkedInEmail struct {
-	Elements []struct {
-		Handle struct {
-			EmailAddress string `json:"emailAddress"`
-		} `json:"handle~"`
-		HandleUrn string `json:"handle"`
-	} `json:"elements"`
+	LocalizedLastName  string `json:"family_name"`
+	LocalizedFirstName string `json:"given_name"`
+	ProfilePicture     string `json:"picture,omitempty"`
+	EmailAddress       string `json:"email"`
+	EmailVerified      bool   `json:"email_verified"`
+	ID                 string `json:"sub"`
+	Locale             *struct {
+		Lanuguage string `json:"language"`
+	} `json:"locale"`
 }
 
 type LinkedInIntrospection struct {
@@ -58,8 +47,7 @@ type LinkedInIntrospection struct {
 // type APIUrl string
 
 const (
-	ProfileUrl       string = "https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~digitalmediaAsset:playableStreams))"
-	EmailUrl         string = "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))"
+	ProfileUrl       string = "https://api.linkedin.com/v2/userinfo"
 	IntrospectionURL string = "https://www.linkedin.com/oauth/v2/introspectToken"
 )
 
@@ -128,6 +116,7 @@ func (l *ProviderLinkedIn) fetch(ctx context.Context, client *retryablehttp.Clie
 
 func (l *ProviderLinkedIn) Profile(ctx context.Context, client *retryablehttp.Client) (*LinkedInProfile, error) {
 	var result LinkedInProfile
+
 	if err := l.fetch(ctx, client, ProfileUrl, &result); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -135,34 +124,11 @@ func (l *ProviderLinkedIn) Profile(ctx context.Context, client *retryablehttp.Cl
 	return &result, nil
 }
 
-func (l *ProviderLinkedIn) Email(ctx context.Context, client *retryablehttp.Client) (*LinkedInEmail, error) {
-	var result LinkedInEmail
-	if err := l.fetch(ctx, client, EmailUrl, &result); err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return &result, nil
-}
-
-func (l *ProviderLinkedIn) ProfilePicture(profile *LinkedInProfile) string {
-	if profile.ProfilePicture == nil {
+func (l *ProviderLinkedIn) ProfileLocale(profile *LinkedInProfile) string {
+	if profile.Locale == nil {
 		return ""
 	}
-
-	elements := profile.ProfilePicture.DisplayImage.Elements
-	i := len(elements)
-	if i == 0 {
-		return ""
-	} else if i > 3 {
-		i = 3
-	}
-
-	identifiers := elements[i-1].Identifiers
-	if len(identifiers) == 0 {
-		return ""
-	}
-
-	return identifiers[0].Identifier
+	return profile.Locale.Lanuguage
 }
 
 func (l *ProviderLinkedIn) Claims(ctx context.Context, exchange *oauth2.Token, query url.Values) (_ *Claims, err error) {
@@ -180,18 +146,15 @@ func (l *ProviderLinkedIn) Claims(ctx context.Context, exchange *oauth2.Token, q
 		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
 	}
 
-	email, err := l.Email(ctx, client)
-	if err != nil {
-		return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("%s", err))
-	}
-
 	claims := &Claims{
-		Subject:   profile.ID,
-		Issuer:    "https://login.linkedin.com/",
-		Email:     email.Elements[0].Handle.EmailAddress,
-		GivenName: profile.LocalizedFirstName,
-		LastName:  profile.LocalizedLastName,
-		Picture:   l.ProfilePicture(profile),
+		Subject:       profile.ID,
+		Issuer:        "https://login.linkedin.com/",
+		Email:         profile.EmailAddress,
+		GivenName:     profile.LocalizedFirstName,
+		LastName:      profile.LocalizedLastName,
+		Picture:       profile.ProfilePicture,
+		EmailVerified: x.ConvertibleBoolean(profile.EmailVerified),
+		Locale:        l.ProfileLocale(profile),
 	}
 
 	return claims, nil
