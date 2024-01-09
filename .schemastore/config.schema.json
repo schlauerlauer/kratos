@@ -492,6 +492,14 @@
             "https://accounts.google.com"
           ]
         },
+        "issuer_url_override": {
+          "title": "Override the oauth issuer URL in case the discovery URL is not at the root of the issuer url",
+          "type": "string",
+          "format": "uri",
+          "examples": [
+            "https://www.linkedin.com"
+          ]
+        },
         "auth_url": {
           "type": "string",
           "format": "uri",

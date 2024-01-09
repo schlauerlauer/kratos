@@ -13,7 +13,7 @@ import (
 	"github.com/ory/herodot"
 	"github.com/ory/x/stringslice"
 
-	gooidc "github.com/coreos/go-oidc"
+	gooidc "github.com/coreos/go-oidc/v3/oidc"
 )
 
 var _ Provider = new(ProviderGenericOIDC)
@@ -40,6 +40,9 @@ func (g *ProviderGenericOIDC) Config() *Configuration {
 
 func (g *ProviderGenericOIDC) provider(ctx context.Context) (*gooidc.Provider, error) {
 	if g.p == nil {
+		if g.config.IssuerURLOverride != "" {
+			ctx = gooidc.InsecureIssuerURLContext(ctx, g.config.IssuerURLOverride)
+		}
 		p, err := gooidc.NewProvider(context.WithValue(ctx, oauth2.HTTPClient, g.reg.HTTPClient(ctx).HTTPClient), g.config.IssuerURL)
 		if err != nil {
 			return nil, errors.WithStack(herodot.ErrInternalServerError.WithReasonf("Unable to initialize OpenID Connect Provider: %s", err))

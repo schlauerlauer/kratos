@@ -189,6 +189,7 @@ export type SelfServiceOIDCProvider = SelfServiceOIDCProvider1 & {
   client_id: string
   client_secret?: string
   issuer_url?: string
+  issuer_url_override?: string
   auth_url?: string
   token_url?: string
   mapper_url: JsonnetMapperURL
