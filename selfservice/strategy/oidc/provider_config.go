@@ -54,6 +54,8 @@ type Configuration struct {
 	// If set, neither `auth_url` nor `token_url` are required.
 	IssuerURL string `json:"issuer_url"`
 
+	// IssuerURLOverride is OpenID Connect Server URL. Set this if the OpenID Connect configuration url is not the same as the issuer url.
+	// You can leave this empty if `provider` is not set to `generic`.
 	IssuerURLOverride string `json:"issuer_url_override"`
 
 	// AuthURL is the authorize url, typically something like: https://example.org/oauth2/auth
